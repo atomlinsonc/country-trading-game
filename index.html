@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Country Trading – Comparative Advantage</title>
+  <style>
+    :root {
+      --bg: #0f1923;
+      --panel: #1a2535;
+      --card: #212f42;
+      --accent: #2dd4bf;
+      --accent2: #f59e0b;
+      --danger: #ef4444;
+      --success: #22c55e;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --border: #2d3f55;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; }
+
+    /* ─── SCREENS ─── */
+    .screen { display: none; }
+    .screen.active { display: block; }
+
+    /* ─── INTRO ─── */
+    #intro { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; background: radial-gradient(ellipse at 50% 0%, #1a3a5c 0%, #0f1923 70%); }
+    #intro h1 { font-size: clamp(2rem,5vw,3.5rem); font-weight: 800; text-align: center; background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 12px; }
+    #intro .subtitle { color: var(--muted); text-align: center; max-width: 600px; margin-bottom: 40px; font-size: 1.05rem; line-height: 1.6; }
+    .rules-box { background: var(--panel); border: 1px solid var(--border); border-radius: 16px; padding: 24px 32px; max-width: 640px; width: 100%; margin-bottom: 36px; }
+    .rules-box h3 { color: var(--accent); margin-bottom: 14px; font-size: 1.1rem; letter-spacing: .05em; text-transform: uppercase; }
+    .rules-box ul { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+    .rules-box li { display: flex; gap: 10px; align-items: flex-start; font-size: .95rem; color: var(--muted); }
+    .rules-box li::before { content: '▶'; color: var(--accent); flex-shrink: 0; margin-top: 1px; }
+
+    /* ─── SPECIALIZATION ─── */
+    #specialize { min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 40px 24px; }
+    #specialize h2 { font-size: 2rem; font-weight: 700; margin-bottom: 8px; }
+    #specialize .sub { color: var(--muted); margin-bottom: 32px; text-align: center; max-width: 560px; }
+    .country-name-row { display: flex; gap: 12px; align-items: center; margin-bottom: 32px; }
+    .country-name-row input { background: var(--card); border: 1px solid var(--border); color: var(--text); border-radius: 10px; padding: 10px 16px; font-size: 1rem; width: 260px; }
+    .spec-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; max-width: 900px; width: 100%; margin-bottom: 36px; }
+    .spec-card { background: var(--card); border: 2px solid var(--border); border-radius: 16px; padding: 24px 20px; cursor: pointer; transition: all .2s; text-align: center; }
+    .spec-card:hover { border-color: var(--accent); transform: translateY(-3px); }
+    .spec-card.selected { border-color: var(--accent); background: #1b3a4b; }
+    .spec-card .icon { font-size: 2.8rem; margin-bottom: 12px; }
+    .spec-card h3 { font-size: 1rem; font-weight: 700; margin-bottom: 6px; }
+    .spec-card p { font-size: .8rem; color: var(--muted); line-height: 1.5; }
+    .spec-card .bonus { margin-top: 10px; font-size: .78rem; color: var(--accent); font-weight: 600; }
+
+    /* ─── MAIN GAME ─── */
+    #game { min-height: 100vh; display: flex; flex-direction: column; }
+    .topbar { background: var(--panel); border-bottom: 1px solid var(--border); padding: 12px 24px; display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+    .topbar .country-label { font-weight: 700; font-size: 1.1rem; }
+    .stat-pill { background: var(--card); border: 1px solid var(--border); border-radius: 30px; padding: 6px 16px; font-size: .9rem; display: flex; gap: 8px; align-items: center; }
+    .stat-pill .label { color: var(--muted); }
+    .stat-pill .val { font-weight: 700; }
+    .val.green { color: var(--success); }
+    .val.red { color: var(--danger); }
+    .val.gold { color: var(--accent2); }
+    .timer-pill { background: var(--card); border: 1px solid var(--border); border-radius: 30px; padding: 6px 16px; font-size: .9rem; display: flex; gap: 8px; align-items: center; margin-left: auto; }
+    .timer-pill .tlabel { color: var(--muted); }
+    #timerDisplay { font-weight: 800; font-size: 1.1rem; color: var(--accent); }
+
+    .game-body { display: grid; grid-template-columns: 1fr 340px; gap: 0; flex: 1; }
+    @media(max-width:900px) { .game-body { grid-template-columns: 1fr; } }
+
+    /* left col */
+    .left-col { padding: 20px; display: flex; flex-direction: column; gap: 16px; overflow-y: auto; }
+
+    /* production panel */
+    .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 20px; }
+    .panel-title { font-size: .75rem; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+    .panel-title span { background: var(--accent); color: var(--bg); border-radius: 4px; padding: 2px 8px; font-weight: 700; }
+
+    .prod-row { display: grid; grid-template-columns: 160px 1fr 100px 90px; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+    .prod-row:last-child { border-bottom: none; }
+    .prod-name { font-weight: 600; font-size: .95rem; display: flex; gap: 8px; align-items: center; }
+    .prod-name .picon { font-size: 1.4rem; }
+    .prod-name .spec-badge { background: var(--accent); color: var(--bg); font-size: .65rem; font-weight: 800; border-radius: 4px; padding: 1px 5px; }
+    input[type=range] { -webkit-appearance: none; width: 100%; height: 6px; border-radius: 3px; background: var(--border); outline: none; cursor: pointer; }
+    input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--accent); cursor: pointer; }
+    .prod-units { text-align: right; font-weight: 700; font-size: .95rem; }
+    .prod-price { text-align: right; font-size: .85rem; }
+    .prod-price .p-val { font-weight: 700; color: var(--accent2); }
+    .prod-price .p-label { color: var(--muted); font-size: .75rem; }
+
+    /* capacity bar */
+    .capacity-bar-wrap { margin-top: 4px; }
+    .capacity-label { display: flex; justify-content: space-between; font-size: .78rem; color: var(--muted); margin-bottom: 4px; }
+    .cap-bar { height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; }
+    .cap-fill { height: 100%; border-radius: 4px; transition: width .3s, background .3s; }
+
+    /* news ticker */
+    .news-panel { background: #141e2b; border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+    .news-header { background: var(--danger); padding: 6px 16px; font-size: .75rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+    #newsFeed { padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; max-height: 160px; overflow-y: auto; }
+    .news-item { font-size: .85rem; color: var(--muted); display: flex; gap: 8px; }
+    .news-item .news-time { color: var(--accent); font-weight: 700; flex-shrink: 0; }
+    .news-item.warn { color: var(--accent2); }
+    .news-item.danger { color: var(--danger); }
+    .news-item.good { color: var(--success); }
+
+    /* right col */
+    .right-col { background: var(--panel); border-left: 1px solid var(--border); padding: 20px; display: flex; flex-direction: column; gap: 16px; overflow-y: auto; }
+    .right-col h3 { font-size: .75rem; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); margin-bottom: 8px; }
+
+    /* trade offers */
+    .trade-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 10px; }
+    .trade-card .tc-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .trade-card .tc-country { font-weight: 700; font-size: .95rem; }
+    .trade-card .tc-flag { font-size: 1.4rem; }
+    .trade-offer-row { display: flex; justify-content: space-between; align-items: center; font-size: .85rem; margin-bottom: 6px; }
+    .trade-offer-row .t-good { color: var(--muted); }
+    .trade-offer-row .t-price { font-weight: 700; }
+    .trade-offer-row .t-price.cheap { color: var(--success); }
+    .trade-offer-row .t-price.expensive { color: var(--danger); }
+    .btn-trade { margin-top: 8px; width: 100%; padding: 7px; border-radius: 8px; border: none; background: var(--accent); color: var(--bg); font-weight: 700; font-size: .85rem; cursor: pointer; transition: opacity .2s; }
+    .btn-trade:hover { opacity: .85; }
+    .btn-trade:disabled { opacity: .4; cursor: not-allowed; }
+
+    /* market prices sidebar */
+    .market-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: .85rem; }
+    .market-row:last-child { border-bottom: none; }
+    .market-row .m-good { display: flex; gap: 6px; align-items: center; }
+    .market-row .m-price { font-weight: 700; }
+    .price-up { color: var(--danger); }
+    .price-down { color: var(--success); }
+    .price-stable { color: var(--muted); }
+
+    /* round end log */
+    #roundLog { font-size: .82rem; color: var(--muted); max-height: 200px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
+    #roundLog .log-item { border-left: 2px solid var(--border); padding-left: 8px; }
+    #roundLog .log-item.pos { border-color: var(--success); color: var(--success); }
+    #roundLog .log-item.neg { border-color: var(--danger); color: var(--danger); }
+
+    /* ─── BUTTONS ─── */
+    .btn { display: inline-block; padding: 12px 28px; border-radius: 10px; border: none; font-weight: 700; font-size: 1rem; cursor: pointer; transition: all .2s; }
+    .btn-primary { background: var(--accent); color: var(--bg); }
+    .btn-primary:hover { opacity: .85; transform: translateY(-1px); }
+    .btn-secondary { background: transparent; color: var(--accent); border: 2px solid var(--accent); }
+    .btn-secondary:hover { background: var(--accent); color: var(--bg); }
+
+    /* ─── END SCREEN ─── */
+    #endscreen { min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 40px 24px; }
+    #endscreen h2 { font-size: 2.2rem; font-weight: 800; margin-bottom: 6px; }
+    .final-score-box { background: var(--panel); border: 2px solid var(--accent); border-radius: 20px; padding: 32px 48px; text-align: center; margin: 24px 0; }
+    .final-score-box .fs-label { color: var(--muted); font-size: .9rem; text-transform: uppercase; letter-spacing: .1em; }
+    .final-score-box .fs-amount { font-size: 3.5rem; font-weight: 900; color: var(--accent2); }
+    .scorecard { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 20px; max-width: 600px; width: 100%; margin-bottom: 24px; }
+    .scorecard table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+    .scorecard td { padding: 8px 4px; border-bottom: 1px solid var(--border); }
+    .scorecard td:last-child { text-align: right; font-weight: 700; }
+    .scorecard tr:last-child td { border-bottom: none; }
+
+    /* ─── QUIZ ─── */
+    #quiz { min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 40px 24px; }
+    #quiz h2 { font-size: 2rem; font-weight: 700; margin-bottom: 8px; }
+    #quiz .sub { color: var(--muted); margin-bottom: 32px; text-align: center; }
+    .q-box { background: var(--panel); border: 1px solid var(--border); border-radius: 16px; padding: 28px; max-width: 680px; width: 100%; margin-bottom: 16px; }
+    .q-num { font-size: .75rem; text-transform: uppercase; letter-spacing: .1em; color: var(--accent); margin-bottom: 8px; }
+    .q-text { font-size: 1rem; font-weight: 600; margin-bottom: 16px; line-height: 1.5; }
+    .q-options { display: flex; flex-direction: column; gap: 10px; }
+    .q-opt { background: var(--card); border: 2px solid var(--border); border-radius: 10px; padding: 12px 16px; cursor: pointer; font-size: .9rem; transition: all .2s; }
+    .q-opt:hover { border-color: var(--accent); }
+    .q-opt.correct { border-color: var(--success); background: #1a3a2a; color: var(--success); }
+    .q-opt.wrong { border-color: var(--danger); background: #3a1a1a; color: var(--danger); }
+    .q-opt.reveal { border-color: var(--success); background: #1a3a2a; color: var(--success); opacity: .7; }
+    .q-feedback { margin-top: 12px; font-size: .88rem; color: var(--muted); line-height: 1.5; display: none; }
+    .q-feedback.show { display: block; }
+    .quiz-score-final { font-size: 1.4rem; font-weight: 700; margin: 20px 0 8px; }
+    .quiz-score-final span { color: var(--accent2); }
+
+    /* ─── MISC ─── */
+    .alert { padding: 10px 16px; border-radius: 8px; font-size: .88rem; margin-bottom: 12px; }
+    .alert-warn { background: #3a2a10; border: 1px solid var(--accent2); color: var(--accent2); }
+    .separator { height: 1px; background: var(--border); margin: 8px 0; }
+    .text-center { text-align: center; }
+    .mt-8 { margin-top: 8px; }
+    .mt-16 { margin-top: 16px; }
+    .mt-24 { margin-top: 24px; }
+    .fade-in { animation: fadeIn .4s ease; }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+    .pulse { animation: pulse 1s infinite; }
+    @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:.5; } }
+
+    .round-badge { background: var(--accent2); color: var(--bg); border-radius: 6px; padding: 2px 10px; font-weight: 800; font-size: .9rem; }
+    .trade-confirm-toast { position: fixed; bottom: 24px; right: 24px; background: var(--success); color: #fff; padding: 12px 20px; border-radius: 10px; font-weight: 700; font-size: .9rem; z-index: 999; display: none; }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════════════════════ INTRO ══════════════════════════════ -->
+<section id="intro" class="screen active">
+  <h1>🌐 Country Trading</h1>
+  <p class="subtitle">Lead your nation to economic prosperity through smart production choices and strategic trade.</p>
+  <div class="rules-box">
+    <h3>How to Play</h3>
+    <ul>
+      <li>Choose your country's <strong>specialization</strong> – this is your comparative advantage.</li>
+      <li>Each round, <strong>set your production sliders</strong> to decide how many units of each good you make.</li>
+      <li>You have limited <strong>production capacity</strong> – allocate wisely.</li>
+      <li>Sell goods on the world market. Prices rise when supply is scarce.</li>
+      <li>Other countries will shift their production over time. Watch the <strong>market</strong> – if a country stops making a good, its price soars and you'll pay more to import it.</li>
+      <li>You have <strong>10 minutes</strong>. Maximize your <strong>treasury</strong>!</li>
+    </ul>
+  </div>
+  <button class="btn btn-primary" onclick="showScreen('specialize')">Start Game →</button>
+</section>
+
+<!-- ══════════════════════════════ SPECIALIZE ══════════════════════════════ -->
+<section id="specialize" class="screen">
+  <h2>Choose Your Specialization</h2>
+  <p class="sub">Your specialization gives you a <strong>production bonus</strong> in that category. This is your nation's <em>comparative advantage</em>.</p>
+  <div class="country-name-row">
+    <input type="text" id="countryNameInput" placeholder="Name your country..." maxlength="24" value="Econoland"/>
+  </div>
+  <div class="spec-grid" id="specGrid"></div>
+  <button class="btn btn-primary" id="startGameBtn" onclick="startGame()" disabled>Begin Trading →</button>
+</section>
+
+<!-- ══════════════════════════════ GAME ══════════════════════════════ -->
+<section id="game" class="screen">
+  <div class="topbar">
+    <div class="country-label" id="topCountryName">🌐 Econoland</div>
+    <div class="stat-pill"><span class="label">Treasury</span><span class="val gold" id="statTreasury">$0</span></div>
+    <div class="stat-pill"><span class="label">Round Income</span><span class="val green" id="statIncome">+$0</span></div>
+    <div class="stat-pill"><span class="label">Round Expenses</span><span class="val red" id="statExpenses">-$0</span></div>
+    <div class="stat-pill"><span class="label">Round</span><span class="val" id="statRound"><span class="round-badge">1</span></span></div>
+    <div class="timer-pill"><span class="tlabel">⏱ Time Left</span><span id="timerDisplay">10:00</span></div>
+  </div>
+  <div class="game-body">
+    <!-- LEFT -->
+    <div class="left-col">
+      <div class="panel">
+        <div class="panel-title">Production Control <span id="capacityUsedLabel">0 / 100</span></div>
+        <div class="capacity-bar-wrap">
+          <div class="capacity-label"><span>Capacity Used</span><span id="capPct">0%</span></div>
+          <div class="cap-bar"><div class="cap-fill" id="capFill" style="width:0%;background:var(--accent)"></div></div>
+        </div>
+        <div style="margin-top:16px" id="prodControls"></div>
+      </div>
+
+      <div class="panel" id="importPanel" style="display:none">
+        <div class="panel-title">⚠️ Essential Imports Needed</div>
+        <div id="importAlerts"></div>
+      </div>
+
+      <div class="news-panel">
+        <div class="news-header">📰 World News Feed</div>
+        <div id="newsFeed"></div>
+      </div>
+    </div>
+    <!-- RIGHT -->
+    <div class="right-col">
+      <div>
+        <h3>World Market Prices</h3>
+        <div id="marketPrices"></div>
+      </div>
+      <div class="separator"></div>
+      <div>
+        <h3>Trade Offers from Other Nations</h3>
+        <div id="tradeOffers"></div>
+      </div>
+      <div class="separator"></div>
+      <div>
+        <h3>Round Summary</h3>
+        <div id="roundLog"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════ END SCREEN ══════════════════════════════ -->
+<section id="endscreen" class="screen">
+  <h2>⏰ Game Over!</h2>
+  <p id="endTagline" style="color:var(--muted);margin-bottom:8px;"></p>
+  <div class="final-score-box">
+    <div class="fs-label">Final Treasury</div>
+    <div class="fs-amount" id="finalTreasury">$0</div>
+  </div>
+  <div class="scorecard">
+    <table id="scorecardTable"></table>
+  </div>
+  <button class="btn btn-primary" onclick="showScreen('quiz')">Answer Reflection Questions →</button>
+</section>
+
+<!-- ══════════════════════════════ QUIZ ══════════════════════════════ -->
+<section id="quiz" class="screen">
+  <h2>Reflection Questions</h2>
+  <p class="sub">Think about your strategy and what you learned about trade.</p>
+  <div id="quizQuestions"></div>
+  <div id="quizResult" style="display:none;text-align:center;max-width:680px;width:100%;">
+    <div class="quiz-score-final">You got <span id="quizScoreSpan">0</span> / 5 correct!</div>
+    <p style="color:var(--muted);margin-bottom:24px;">Review the explanations above, then discuss with your class.</p>
+    <button class="btn btn-secondary" onclick="location.reload()">Play Again</button>
+  </div>
+</section>
+
+<div class="trade-confirm-toast" id="tradeToast">✅ Trade executed!</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+//  DATA
+// ═══════════════════════════════════════════════════════════════════
+
+const GOODS = [
+  { id:'wheat',   name:'Wheat',      icon:'🌾', basePrice:40,  essential:true  },
+  { id:'steel',   name:'Steel',      icon:'🔩', basePrice:80,  essential:true  },
+  { id:'oil',     name:'Oil',        icon:'🛢️', basePrice:100, essential:true  },
+  { id:'tech',    name:'Technology', icon:'💻', basePrice:150, essential:false },
+  { id:'textiles',name:'Textiles',   icon:'👗', basePrice:50,  essential:false },
+  { id:'medicine',name:'Medicine',   icon:'💊', basePrice:120, essential:true  },
+];
+
+const SPECIALIZATIONS = [
+  { id:'agri',    label:'Agriculture',   icon:'🌾', desc:'Fertile lands and advanced farming techniques.', bonus:['wheat'], bonusText:'+50% Wheat production, lower farming costs' },
+  { id:'industry',label:'Industry',      icon:'🏭', desc:'Heavy manufacturing and steel production.',       bonus:['steel'], bonusText:'+50% Steel production, bulk discount on raw inputs' },
+  { id:'energy',  label:'Energy',        icon:'⚡', desc:'Vast oil reserves and energy infrastructure.',    bonus:['oil'],   bonusText:'+50% Oil production, stable energy exports' },
+  { id:'tech',    label:'Technology',    icon:'💻', desc:'Silicon Valley of the world.',                   bonus:['tech'],  bonusText:'+50% Tech production, innovation premium on sales' },
+  { id:'textile', label:'Textiles',      icon:'👗', desc:'World-class fashion and fabric manufacturing.',  bonus:['textiles'], bonusText:'+50% Textile production, fast export clearance' },
+  { id:'pharma',  label:'Pharmaceuticals',icon:'💊', desc:'Leading biotech and medicine R&D.',            bonus:['medicine'], bonusText:'+50% Medicine production, premium brand pricing' },
+];
+
+const AI_COUNTRIES = [
+  { name:'Novatia',   flag:'🏔️',  spec:'agri',    personality:'balanced' },
+  { name:'Ferrox',    flag:'⚙️',  spec:'industry', personality:'aggressive' },
+  { name:'Petrolum',  flag:'🔥',  spec:'energy',   personality:'volatile' },
+  { name:'Digitalia', flag:'🌐',  spec:'tech',     personality:'steady' },
+  { name:'Clothuria', flag:'🌸',  spec:'textile',  personality:'balanced' },
+  { name:'Medica',    flag:'❤️',  spec:'pharma',   personality:'steady' },
+];
+
+const QUIZ_QUESTIONS = [
+  {
+    q: "What is comparative advantage?",
+    opts: [
+      "The ability to produce more of a good than any other country",
+      "The ability to produce a good at a lower opportunity cost than another country",
+      "Having the largest economy in the world",
+      "Owning the most natural resources"
+    ],
+    correct: 1,
+    feedback: "Comparative advantage means producing a good at a lower opportunity cost — not necessarily being the best at it in absolute terms. This is why trade benefits all countries."
+  },
+  {
+    q: "In this game, why did you choose to specialize in your selected industry?",
+    opts: [
+      "Because specializing lets you produce that good more efficiently, earning more per round",
+      "Because other countries can't produce any goods at all",
+      "Because specializing means you never need to trade",
+      "Because it gave you the biggest army"
+    ],
+    correct: 0,
+    feedback: "Specialization + trade allows each country to consume beyond its own production frontier. Your bonus production made your specialized good more profitable to export."
+  },
+  {
+    q: "When a country stopped producing an essential good (like oil or medicine), what happened to its price?",
+    opts: [
+      "The price dropped because supply increased",
+      "Nothing — prices never change",
+      "The price rose because supply was scarce and demand remained constant",
+      "The price dropped because no one wanted it"
+    ],
+    correct: 2,
+    feedback: "Basic supply and demand: when supply falls and demand stays constant, prices rise. Countries that rely on essential imports are vulnerable when global supply is disrupted."
+  },
+  {
+    q: "Which statement best describes why ALL countries benefit from free trade?",
+    opts: [
+      "Only the richest countries benefit from trade",
+      "Countries can specialize, produce efficiently, and trade for goods they are less efficient at producing",
+      "Trade always results in one country winning and another losing",
+      "Trade only benefits countries with large armies"
+    ],
+    correct: 1,
+    feedback: "Trade is not zero-sum. When each country specializes in goods where it has a comparative advantage, total global output increases and all trading partners can consume more."
+  },
+  {
+    q: "What real-world concept does the game's 'production capacity slider' represent?",
+    opts: [
+      "A country's military budget",
+      "The scarcity of land and resources — a country cannot produce unlimited amounts of everything",
+      "The number of citizens in a country",
+      "The exchange rate between currencies"
+    ],
+    correct: 1,
+    feedback: "The production capacity represents the concept of opportunity cost and scarcity. Producing more of one good means producing less of another — this trade-off is at the heart of comparative advantage."
+  }
+];
+
+// ═══════════════════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════════════════
+
+let state = {
+  countryName: 'Econoland',
+  spec: null,
+  treasury: 500,
+  round: 1,
+  maxRounds: 20,     // ~10 min at 30s/round
+  roundDuration: 30, // seconds
+  timeLeft: 0,
+  timerInterval: null,
+  roundInterval: null,
+  totalSeconds: 600,
+  secondsElapsed: 0,
+  gameOver: false,
+
+  // production: units player has set (0-100 total capacity)
+  production: {},
+  capacity: 100,
+
+  // market prices
+  prices: {},
+
+  // AI country states
+  aiCountries: [],
+
+  // stats tracking
+  totalEarned: 0,
+  totalSpent: 0,
+  tradesExecuted: 0,
+  importCosts: 0,
+
+  // round log
+  log: [],
+};
+
+// ═══════════════════════════════════════════════════════════════════
+//  SCREENS
+// ═══════════════════════════════════════════════════════════════════
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  const el = document.getElementById(id);
+  el.classList.add('active');
+  el.classList.add('fade-in');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  SPECIALIZATION SCREEN
+// ═══════════════════════════════════════════════════════════════════
+
+function buildSpecGrid() {
+  const grid = document.getElementById('specGrid');
+  grid.innerHTML = '';
+  SPECIALIZATIONS.forEach(s => {
+    const card = document.createElement('div');
+    card.className = 'spec-card';
+    card.innerHTML = `<div class="icon">${s.icon}</div><h3>${s.label}</h3><p>${s.desc}</p><div class="bonus">${s.bonusText}</div>`;
+    card.onclick = () => selectSpec(s.id, card);
+    grid.appendChild(card);
+  });
+}
+
+function selectSpec(id, card) {
+  document.querySelectorAll('.spec-card').forEach(c => c.classList.remove('selected'));
+  card.classList.add('selected');
+  state.spec = id;
+  document.getElementById('startGameBtn').disabled = false;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  GAME INIT
+// ═══════════════════════════════════════════════════════════════════
+
+function startGame() {
+  state.countryName = document.getElementById('countryNameInput').value.trim() || 'Econoland';
+  document.getElementById('topCountryName').textContent = '🌐 ' + state.countryName;
+
+  // init prices
+  GOODS.forEach(g => { state.prices[g.id] = g.basePrice; });
+
+  // init production (all zero to start)
+  GOODS.forEach(g => { state.production[g.id] = 0; });
+
+  // init AI countries
+  state.aiCountries = AI_COUNTRIES.map(c => ({
+    ...c,
+    production: {},
+    disrupted: false,
+    disruptedRounds: 0,
+  }));
+  state.aiCountries.forEach(ai => {
+    GOODS.forEach(g => {
+      // AI base production — specced good gets higher allocation
+      const isSpec = SPECIALIZATIONS.find(s => s.id === ai.spec)?.bonus.includes(g.id);
+      ai.production[g.id] = isSpec ? 40 : Math.floor(Math.random() * 15) + 5;
+    });
+  });
+
+  buildProdControls();
+  buildMarketPrices();
+  buildTradeOffers();
+  renderRoundLog();
+  addNews('Game started! Set your production and begin trading.', 'good');
+
+  showScreen('game');
+  startTimer();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  PRODUCTION CONTROLS
+// ═══════════════════════════════════════════════════════════════════
+
+function buildProdControls() {
+  const container = document.getElementById('prodControls');
+  container.innerHTML = '';
+  GOODS.forEach(g => {
+    const specInfo = SPECIALIZATIONS.find(s => s.id === state.spec);
+    const isSpec = specInfo?.bonus.includes(g.id);
+    const row = document.createElement('div');
+    row.className = 'prod-row';
+    row.innerHTML = `
+      <div class="prod-name">
+        <span class="picon">${g.icon}</span>
+        <span>${g.name}</span>
+        ${isSpec ? '<span class="spec-badge">★ SPEC</span>' : ''}
+      </div>
+      <input type="range" min="0" max="100" value="0" id="slider_${g.id}" oninput="onSlider('${g.id}', this.value)"/>
+      <div class="prod-units" id="units_${g.id}">0 units</div>
+      <div class="prod-price">
+        <div class="p-val" id="pprice_${g.id}">$${state.prices[g.id]}</div>
+        <div class="p-label">/ unit</div>
+      </div>
+    `;
+    container.appendChild(row);
+  });
+  updateCapacityBar();
+}
+
+function onSlider(goodId, rawVal) {
+  const val = parseInt(rawVal);
+  const used = getCapacityUsed(goodId, val);
+  if (used > state.capacity) {
+    // clamp
+    const remaining = state.capacity - getCapacityUsedExcept(goodId);
+    const clamped = Math.max(0, remaining);
+    document.getElementById('slider_' + goodId).value = clamped;
+    state.production[goodId] = clamped;
+  } else {
+    state.production[goodId] = val;
+  }
+  document.getElementById('units_' + goodId).textContent = state.production[goodId] + ' units';
+  updateCapacityBar();
+}
+
+function getCapacityUsedExcept(excludeId) {
+  return GOODS.reduce((sum, g) => g.id === excludeId ? sum : sum + (state.production[g.id] || 0), 0);
+}
+function getCapacityUsed(id, newVal) {
+  return getCapacityUsedExcept(id) + newVal;
+}
+function totalCapacityUsed() {
+  return GOODS.reduce((sum, g) => sum + (state.production[g.id] || 0), 0);
+}
+
+function updateCapacityBar() {
+  const used = totalCapacityUsed();
+  const pct = Math.min(100, Math.round(used / state.capacity * 100));
+  document.getElementById('capFill').style.width = pct + '%';
+  document.getElementById('capFill').style.background = pct > 85 ? 'var(--danger)' : pct > 60 ? 'var(--accent2)' : 'var(--accent)';
+  document.getElementById('capPct').textContent = pct + '%';
+  document.getElementById('capacityUsedLabel').textContent = used + ' / ' + state.capacity;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  TIMER & ROUNDS
+// ═══════════════════════════════════════════════════════════════════
+
+function startTimer() {
+  state.secondsElapsed = 0;
+  updateTimerDisplay(state.totalSeconds);
+
+  state.timerInterval = setInterval(() => {
+    state.secondsElapsed++;
+    const remaining = state.totalSeconds - state.secondsElapsed;
+    updateTimerDisplay(remaining);
+    if (remaining <= 0) endGame();
+  }, 1000);
+
+  // round every 30 seconds
+  state.roundInterval = setInterval(() => {
+    if (!state.gameOver) processRound();
+  }, 30000);
+
+  // first round after 3s so player can set sliders
+  setTimeout(() => { if (!state.gameOver) processRound(); }, 3000);
+}
+
+function updateTimerDisplay(secs) {
+  const m = Math.floor(secs / 60);
+  const s = secs % 60;
+  const el = document.getElementById('timerDisplay');
+  el.textContent = `${m}:${s.toString().padStart(2,'0')}`;
+  if (secs <= 60) { el.style.color = 'var(--danger)'; el.classList.add('pulse'); }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  ROUND PROCESSING
+// ═══════════════════════════════════════════════════════════════════
+
+function processRound() {
+  if (state.gameOver) return;
+
+  const roundLog = [];
+  let income = 0;
+  let expenses = 0;
+
+  // 1. Sell player production
+  GOODS.forEach(g => {
+    const units = state.production[g.id] || 0;
+    if (units === 0) return;
+    const specInfo = SPECIALIZATIONS.find(s => s.id === state.spec);
+    const isSpec = specInfo?.bonus.includes(g.id);
+    const bonus = isSpec ? 1.5 : 1.0;
+    const price = state.prices[g.id];
+    const earned = Math.round(units * price * bonus);
+    income += earned;
+    roundLog.push({ text: `Sold ${units} ${g.name} @ $${price} → +$${earned}${isSpec ? ' (★ spec bonus)' : ''}`, type: 'pos' });
+  });
+
+  // 2. Essential goods you produce 0 of → must import
+  const importPanel = document.getElementById('importPanel');
+  const importAlerts = document.getElementById('importAlerts');
+  importAlerts.innerHTML = '';
+  let anyImport = false;
+
+  GOODS.filter(g => g.essential).forEach(g => {
+    const units = state.production[g.id] || 0;
+    if (units === 0) {
+      const importCost = Math.round(state.prices[g.id] * 15);
+      expenses += importCost;
+      state.importCosts += importCost;
+      roundLog.push({ text: `Imported ${g.name} (essential) @ market price → -$${importCost}`, type: 'neg' });
+      const div = document.createElement('div');
+      div.className = 'alert alert-warn';
+      div.textContent = `⚠️ You produce no ${g.name}! Importing essential goods: -$${importCost.toLocaleString()} this round.`;
+      importAlerts.appendChild(div);
+      anyImport = true;
+    }
+  });
+  importPanel.style.display = anyImport ? 'block' : 'none';
+
+  // 3. Update AI countries
+  updateAI();
+
+  // 4. Update prices based on total supply
+  updatePrices();
+
+  // 5. Apply finances
+  const net = income - expenses;
+  state.treasury += net;
+  state.totalEarned += income;
+  state.totalSpent += expenses;
+
+  // 6. Update UI stats
+  document.getElementById('statTreasury').textContent = '$' + state.treasury.toLocaleString();
+  document.getElementById('statIncome').textContent = '+$' + income.toLocaleString();
+  document.getElementById('statExpenses').textContent = '-$' + expenses.toLocaleString();
+  document.getElementById('statRound').innerHTML = `<span class="round-badge">${state.round}</span>`;
+
+  // round log
+  state.log = roundLog;
+  renderRoundLog();
+
+  // 7. Refresh UI
+  buildMarketPrices();
+  buildTradeOffers();
+  refreshPricesOnSliders();
+
+  state.round++;
+  if (state.round > state.maxRounds) endGame();
+}
+
+function renderRoundLog() {
+  const el = document.getElementById('roundLog');
+  if (!state.log.length) { el.innerHTML = '<div style="color:var(--muted);font-size:.85rem">No activity yet.</div>'; return; }
+  el.innerHTML = state.log.map(l => `<div class="log-item ${l.type}">${l.text}</div>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  AI BEHAVIOR
+// ═══════════════════════════════════════════════════════════════════
+
+function updateAI() {
+  state.aiCountries.forEach(ai => {
+    if (ai.disrupted) {
+      ai.disruptedRounds--;
+      if (ai.disruptedRounds <= 0) {
+        ai.disrupted = false;
+        addNews(`${ai.flag} ${ai.name} has resumed normal production.`, 'good');
+      }
+      return;
+    }
+
+    const rand = Math.random();
+
+    if (ai.personality === 'volatile' && rand < 0.18) {
+      // randomly disrupt
+      ai.disrupted = true;
+      ai.disruptedRounds = Math.floor(Math.random() * 3) + 1;
+      const affected = GOODS[Math.floor(Math.random() * GOODS.length)];
+      const oldProd = ai.production[affected.id];
+      ai.production[affected.id] = 0;
+      addNews(`🚨 ${ai.flag} ${ai.name} suffered a supply disruption! ${affected.icon} ${affected.name} output dropped to 0 for ${ai.disruptedRounds} round(s).`, 'danger');
+    } else if (ai.personality === 'aggressive' && rand < 0.15) {
+      // floods market with spec good
+      const specInfo = SPECIALIZATIONS.find(s => s.id === ai.spec);
+      if (specInfo) {
+        specInfo.bonus.forEach(gid => { ai.production[gid] = Math.min(80, ai.production[gid] + 20); });
+        addNews(`📦 ${ai.flag} ${ai.name} ramped up production — flooding the market with ${specInfo.label} goods. Prices may fall.`, 'warn');
+      }
+    } else if (rand < 0.1) {
+      // random shift
+      const g1 = GOODS[Math.floor(Math.random() * GOODS.length)];
+      const g2 = GOODS[Math.floor(Math.random() * GOODS.length)];
+      if (g1.id !== g2.id) {
+        const shift = Math.floor(Math.random() * 10) + 5;
+        ai.production[g1.id] = Math.max(0, ai.production[g1.id] - shift);
+        ai.production[g2.id] = Math.min(60, ai.production[g2.id] + shift);
+        if (g1.essential && ai.production[g1.id] === 0) {
+          addNews(`⚠️ ${ai.flag} ${ai.name} stopped producing ${g1.icon} ${g1.name}! Import prices rising.`, 'warn');
+        }
+      }
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  PRICE DYNAMICS
+// ═══════════════════════════════════════════════════════════════════
+
+function totalGlobalSupply(goodId) {
+  const playerUnits = state.production[goodId] || 0;
+  const aiUnits = state.aiCountries.reduce((sum, ai) => sum + (ai.disrupted ? 0 : (ai.production[goodId] || 0)), 0);
+  return playerUnits + aiUnits;
+}
+
+function updatePrices() {
+  GOODS.forEach(g => {
+    const supply = totalGlobalSupply(g.id);
+    const base = g.basePrice;
+    let newPrice;
+    if (supply === 0) {
+      newPrice = base * 3.5; // very scarce
+    } else if (supply < 30) {
+      newPrice = base * (1 + (30 - supply) / 30 * 1.5);
+    } else if (supply > 100) {
+      newPrice = base * 0.7;
+    } else {
+      newPrice = base * (1 + (50 - supply) / 100);
+    }
+    const oldPrice = state.prices[g.id];
+    state.prices[g.id] = Math.round(Math.max(base * 0.5, Math.min(base * 4, newPrice)));
+    if (state.prices[g.id] > oldPrice * 1.3 && g.essential) {
+      addNews(`📈 ${g.icon} ${g.name} prices surging! Global supply critically low.`, 'danger');
+    } else if (state.prices[g.id] < oldPrice * 0.75) {
+      addNews(`📉 ${g.icon} ${g.name} prices falling — market flooded.`, 'warn');
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  MARKET PRICES UI
+// ═══════════════════════════════════════════════════════════════════
+
+function buildMarketPrices() {
+  const el = document.getElementById('marketPrices');
+  el.innerHTML = GOODS.map(g => {
+    const price = state.prices[g.id];
+    const base = g.basePrice;
+    const delta = price - base;
+    let cls = 'price-stable', arrow = '→';
+    if (delta > base * 0.1) { cls = 'price-up'; arrow = '▲'; }
+    if (delta < -base * 0.1) { cls = 'price-down'; arrow = '▼'; }
+    const supply = totalGlobalSupply(g.id);
+    return `<div class="market-row">
+      <div class="m-good">${g.icon} <span>${g.name}</span></div>
+      <div>
+        <span class="m-price ${cls}">${arrow} $${price}</span>
+        <span style="font-size:.75rem;color:var(--muted);margin-left:6px">supply: ${supply}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function refreshPricesOnSliders() {
+  GOODS.forEach(g => {
+    const el = document.getElementById('pprice_' + g.id);
+    if (el) el.textContent = '$' + state.prices[g.id];
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  TRADE OFFERS UI
+// ═══════════════════════════════════════════════════════════════════
+
+function buildTradeOffers() {
+  const el = document.getElementById('tradeOffers');
+  el.innerHTML = '';
+  // Show top 3 AI countries with best deals
+  const offers = [];
+  state.aiCountries.forEach(ai => {
+    if (ai.disrupted) return;
+    GOODS.forEach(g => {
+      const aiProd = ai.production[g.id] || 0;
+      if (aiProd < 10) return;
+      const specInfo = SPECIALIZATIONS.find(s => s.id === ai.spec);
+      const isSpec = specInfo?.bonus.includes(g.id);
+      const offerPrice = isSpec ? Math.round(state.prices[g.id] * 0.85) : state.prices[g.id];
+      offers.push({ ai, g, units: Math.min(30, Math.floor(aiProd / 2)), offerPrice });
+    });
+  });
+
+  // sort by best deal (lowest price)
+  offers.sort((a, b) => a.offerPrice - b.offerPrice);
+  const shown = offers.slice(0, 4);
+
+  if (!shown.length) {
+    el.innerHTML = '<div style="color:var(--muted);font-size:.85rem">No trade offers available this round.</div>';
+    return;
+  }
+
+  shown.forEach(offer => {
+    const card = document.createElement('div');
+    card.className = 'trade-card';
+    const cheap = offer.offerPrice < state.prices[offer.g.id] * 0.95;
+    const expensive = offer.offerPrice > state.prices[offer.g.id] * 1.05;
+    const priceCls = cheap ? 'cheap' : expensive ? 'expensive' : '';
+    const cost = offer.units * offer.offerPrice;
+    card.innerHTML = `
+      <div class="tc-header"><span class="tc-country">${offer.ai.flag} ${offer.ai.name}</span></div>
+      <div class="trade-offer-row">
+        <span class="t-good">${offer.g.icon} ${offer.g.name} (${offer.units} units)</span>
+        <span class="t-price ${priceCls}">$${offer.offerPrice}/unit</span>
+      </div>
+      <div style="font-size:.78rem;color:var(--muted)">Total cost: $${cost.toLocaleString()}</div>
+      <button class="btn-trade" onclick="executeTrade('${offer.ai.name}','${offer.g.id}',${offer.units},${offer.offerPrice},${cost},this)">
+        Import ${offer.units} units for $${cost.toLocaleString()}
+      </button>
+    `;
+    el.appendChild(card);
+  });
+}
+
+function executeTrade(countryName, goodId, units, pricePerUnit, totalCost, btn) {
+  if (state.treasury < totalCost) {
+    addNews('❌ Not enough funds for that trade!', 'danger');
+    return;
+  }
+  state.treasury -= totalCost;
+  state.totalSpent += totalCost;
+  state.importCosts += totalCost;
+  state.tradesExecuted++;
+  document.getElementById('statTreasury').textContent = '$' + state.treasury.toLocaleString();
+  const good = GOODS.find(g => g.id === goodId);
+  addNews(`🤝 Trade with ${countryName}: imported ${units} ${good.name} for $${totalCost.toLocaleString()}`, 'good');
+  btn.disabled = true;
+  btn.textContent = '✅ Purchased';
+  showToast();
+}
+
+function showToast() {
+  const t = document.getElementById('tradeToast');
+  t.style.display = 'block';
+  setTimeout(() => { t.style.display = 'none'; }, 2000);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  NEWS FEED
+// ═══════════════════════════════════════════════════════════════════
+
+function addNews(text, type = '') {
+  const feed = document.getElementById('newsFeed');
+  const div = document.createElement('div');
+  div.className = 'news-item ' + type;
+  const secs = state.secondsElapsed || 0;
+  const m = Math.floor(secs / 60), s = secs % 60;
+  div.innerHTML = `<span class="news-time">${m}:${s.toString().padStart(2,'0')}</span> ${text}`;
+  feed.prepend(div);
+  // keep last 30
+  while (feed.children.length > 30) feed.removeChild(feed.lastChild);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  END GAME
+// ═══════════════════════════════════════════════════════════════════
+
+function endGame() {
+  if (state.gameOver) return;
+  state.gameOver = true;
+  clearInterval(state.timerInterval);
+  clearInterval(state.roundInterval);
+
+  document.getElementById('finalTreasury').textContent = '$' + state.treasury.toLocaleString();
+
+  const taglines = [
+    state.treasury > 5000 ? '🏆 Your nation is an economic powerhouse!' : '',
+    state.treasury > 2000 ? '📈 A solid performance! Your specialization paid off.' : '',
+    state.treasury > 0 ? '⚖️ You stayed afloat. Room to grow with better specialization.' : '📉 Your economy struggled. Consider specializing more next time.',
+  ];
+  document.getElementById('endTagline').textContent = taglines.find(t => t) || '📉 Tough game. Try specializing and importing less.';
+
+  // scorecard
+  const specInfo = SPECIALIZATIONS.find(s => s.id === state.spec);
+  const table = document.getElementById('scorecardTable');
+  table.innerHTML = `
+    <tr><td>Country</td><td>${state.countryName}</td></tr>
+    <tr><td>Specialization</td><td>${specInfo?.icon} ${specInfo?.label}</td></tr>
+    <tr><td>Rounds Played</td><td>${state.round - 1}</td></tr>
+    <tr><td>Total Revenue</td><td style="color:var(--success)">+$${state.totalEarned.toLocaleString()}</td></tr>
+    <tr><td>Total Expenses</td><td style="color:var(--danger)">-$${state.totalSpent.toLocaleString()}</td></tr>
+    <tr><td>Import Costs</td><td style="color:var(--danger)">-$${state.importCosts.toLocaleString()}</td></tr>
+    <tr><td>Trades Executed</td><td>${state.tradesExecuted}</td></tr>
+    <tr><td style="font-weight:700">Final Treasury</td><td style="font-weight:800;color:var(--accent2)">$${state.treasury.toLocaleString()}</td></tr>
+  `;
+
+  showScreen('endscreen');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  QUIZ
+// ═══════════════════════════════════════════════════════════════════
+
+let quizAnswers = [];
+let quizDone = false;
+
+function buildQuiz() {
+  const container = document.getElementById('quizQuestions');
+  container.innerHTML = '';
+  quizAnswers = new Array(QUIZ_QUESTIONS.length).fill(null);
+
+  QUIZ_QUESTIONS.forEach((q, qi) => {
+    const box = document.createElement('div');
+    box.className = 'q-box fade-in';
+    box.innerHTML = `
+      <div class="q-num">Question ${qi + 1} of ${QUIZ_QUESTIONS.length}</div>
+      <div class="q-text">${q.q}</div>
+      <div class="q-options">
+        ${q.opts.map((o, oi) => `<div class="q-opt" id="opt_${qi}_${oi}" onclick="answerQ(${qi},${oi})">${o}</div>`).join('')}
+      </div>
+      <div class="q-feedback" id="fb_${qi}">${q.feedback}</div>
+    `;
+    container.appendChild(box);
+  });
+}
+
+function answerQ(qi, oi) {
+  if (quizAnswers[qi] !== null) return;
+  quizAnswers[qi] = oi;
+  const q = QUIZ_QUESTIONS[qi];
+  // highlight
+  q.opts.forEach((_, i) => {
+    const el = document.getElementById(`opt_${qi}_${i}`);
+    if (i === q.correct) el.classList.add(oi === q.correct ? 'correct' : 'reveal');
+    if (i === oi && oi !== q.correct) el.classList.add('wrong');
+    el.style.pointerEvents = 'none';
+  });
+  document.getElementById(`fb_${qi}`).classList.add('show');
+
+  // check if all answered
+  if (quizAnswers.every(a => a !== null) && !quizDone) {
+    quizDone = true;
+    const correct = quizAnswers.filter((a, i) => a === QUIZ_QUESTIONS[i].correct).length;
+    document.getElementById('quizScoreSpan').textContent = correct;
+    document.getElementById('quizResult').style.display = 'block';
+    document.getElementById('quizResult').scrollIntoView({ behavior: 'smooth' });
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  BOOT
+// ═══════════════════════════════════════════════════════════════════
+
+buildSpecGrid();
+buildQuiz(); // pre-build quiz so it's ready
+
+// Wire quiz screen
+document.getElementById('quiz').insertAdjacentHTML('afterbegin','');
+// re-build quiz when shown (already done above)
+</script>
+</body>
+</html>
