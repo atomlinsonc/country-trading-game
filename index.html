@@ -59,9 +59,12 @@
     .val.green { color: var(--success); }
     .val.red { color: var(--danger); }
     .val.gold { color: var(--accent2); }
-    .timer-pill { background: var(--card); border: 1px solid var(--border); border-radius: 30px; padding: 6px 16px; font-size: .9rem; display: flex; gap: 8px; align-items: center; margin-left: auto; }
-    .timer-pill .tlabel { color: var(--muted); }
-    #timerDisplay { font-weight: 800; font-size: 1.1rem; color: var(--accent); }
+    .round-progress { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+    .round-progress .rp-label { color: var(--muted); font-size: .9rem; }
+    .round-track { display: flex; gap: 3px; }
+    .round-pip { width: 10px; height: 10px; border-radius: 50%; background: var(--border); transition: background .3s; }
+    .round-pip.done { background: var(--accent); }
+    .round-pip.current { background: var(--accent2); }
 
     .game-body { display: grid; grid-template-columns: 1fr 340px; gap: 0; flex: 1; }
     @media(max-width:900px) { .game-body { grid-template-columns: 1fr; } }
@@ -182,8 +185,12 @@
     .mt-24 { margin-top: 24px; }
     .fade-in { animation: fadeIn .4s ease; }
     @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
-    .pulse { animation: pulse 1s infinite; }
-    @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:.5; } }
+    /* end turn button */
+    .end-turn-wrap { display: flex; justify-content: flex-end; }
+    .btn-end-turn { background: var(--accent2); color: var(--bg); border: none; border-radius: 12px; padding: 14px 36px; font-size: 1.05rem; font-weight: 800; cursor: pointer; transition: all .2s; letter-spacing: .02em; }
+    .btn-end-turn:hover { opacity: .88; transform: translateY(-2px); }
+    .btn-end-turn:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+    .btn-end-turn.final { background: var(--danger); }
 
     .round-badge { background: var(--accent2); color: var(--bg); border-radius: 6px; padding: 2px 10px; font-weight: 800; font-size: .9rem; }
     .trade-confirm-toast { position: fixed; bottom: 24px; right: 24px; background: var(--success); color: #fff; padding: 12px 20px; border-radius: 10px; font-weight: 700; font-size: .9rem; z-index: 999; display: none; }
@@ -203,7 +210,8 @@
       <li>You have limited <strong>production capacity</strong> – allocate wisely.</li>
       <li>Sell goods on the world market. Prices rise when supply is scarce.</li>
       <li>Other countries will shift their production over time. Watch the <strong>market</strong> – if a country stops making a good, its price soars and you'll pay more to import it.</li>
-      <li>You have <strong>10 minutes</strong>. Maximize your <strong>treasury</strong>!</li>
+      <li>The game lasts <strong>20 rounds</strong>. After each round, review the results then click <strong>End Turn</strong> to advance.</li>
+      <li>Maximize your <strong>treasury</strong> by the end of Round 20!</li>
     </ul>
   </div>
   <button class="btn btn-primary" onclick="showScreen('specialize')">Start Game →</button>
@@ -227,8 +235,11 @@
     <div class="stat-pill"><span class="label">Treasury</span><span class="val gold" id="statTreasury">$0</span></div>
     <div class="stat-pill"><span class="label">Round Income</span><span class="val green" id="statIncome">+$0</span></div>
     <div class="stat-pill"><span class="label">Round Expenses</span><span class="val red" id="statExpenses">-$0</span></div>
-    <div class="stat-pill"><span class="label">Round</span><span class="val" id="statRound"><span class="round-badge">1</span></span></div>
-    <div class="timer-pill"><span class="tlabel">⏱ Time Left</span><span id="timerDisplay">10:00</span></div>
+    <div class="stat-pill"><span class="label">Round</span><span class="val" id="statRound"><span class="round-badge">1 / 20</span></span></div>
+    <div class="round-progress">
+      <span class="rp-label">Progress</span>
+      <div class="round-track" id="roundTrack"></div>
+    </div>
   </div>
   <div class="game-body">
     <!-- LEFT -->
@@ -240,6 +251,9 @@
           <div class="cap-bar"><div class="cap-fill" id="capFill" style="width:0%;background:var(--accent)"></div></div>
         </div>
         <div style="margin-top:16px" id="prodControls"></div>
+        <div class="end-turn-wrap" style="margin-top:20px">
+          <button class="btn-end-turn" id="endTurnBtn" onclick="endTurn()">End Turn → Round 1 of 20</button>
+        </div>
       </div>
 
       <div class="panel" id="importPanel" style="display:none">
@@ -274,7 +288,7 @@
 
 <!-- ══════════════════════════════ END SCREEN ══════════════════════════════ -->
 <section id="endscreen" class="screen">
-  <h2>⏰ Game Over!</h2>
+  <h2>🏁 20 Rounds Complete!</h2>
   <p id="endTagline" style="color:var(--muted);margin-bottom:8px;"></p>
   <div class="final-score-box">
     <div class="fs-label">Final Treasury</div>
@@ -399,13 +413,7 @@ let state = {
   spec: null,
   treasury: 500,
   round: 1,
-  maxRounds: 20,     // ~10 min at 30s/round
-  roundDuration: 30, // seconds
-  timeLeft: 0,
-  timerInterval: null,
-  roundInterval: null,
-  totalSeconds: 600,
-  secondsElapsed: 0,
+  maxRounds: 20,
   gameOver: false,
 
   // production: units player has set (0-100 total capacity)
@@ -495,10 +503,10 @@ function startGame() {
   buildMarketPrices();
   buildTradeOffers();
   renderRoundLog();
-  addNews('Game started! Set your production and begin trading.', 'good');
+  buildRoundTrack();
+  addNews('Game started! Set your production sliders, then click End Turn.', 'good');
 
   showScreen('game');
-  startTimer();
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -567,35 +575,44 @@ function updateCapacityBar() {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  TIMER & ROUNDS
+//  TURN CONTROL
 // ═══════════════════════════════════════════════════════════════════
 
-function startTimer() {
-  state.secondsElapsed = 0;
-  updateTimerDisplay(state.totalSeconds);
-
-  state.timerInterval = setInterval(() => {
-    state.secondsElapsed++;
-    const remaining = state.totalSeconds - state.secondsElapsed;
-    updateTimerDisplay(remaining);
-    if (remaining <= 0) endGame();
-  }, 1000);
-
-  // round every 30 seconds
-  state.roundInterval = setInterval(() => {
-    if (!state.gameOver) processRound();
-  }, 30000);
-
-  // first round after 3s so player can set sliders
-  setTimeout(() => { if (!state.gameOver) processRound(); }, 3000);
+function buildRoundTrack() {
+  const track = document.getElementById('roundTrack');
+  track.innerHTML = '';
+  for (let i = 1; i <= state.maxRounds; i++) {
+    const pip = document.createElement('div');
+    pip.className = 'round-pip' + (i === state.round ? ' current' : '');
+    pip.id = 'pip_' + i;
+    track.appendChild(pip);
+  }
 }
 
-function updateTimerDisplay(secs) {
-  const m = Math.floor(secs / 60);
-  const s = secs % 60;
-  const el = document.getElementById('timerDisplay');
-  el.textContent = `${m}:${s.toString().padStart(2,'0')}`;
-  if (secs <= 60) { el.style.color = 'var(--danger)'; el.classList.add('pulse'); }
+function updateRoundTrack() {
+  for (let i = 1; i <= state.maxRounds; i++) {
+    const pip = document.getElementById('pip_' + i);
+    if (!pip) continue;
+    pip.className = 'round-pip' + (i < state.round ? ' done' : i === state.round ? ' current' : '');
+  }
+}
+
+function endTurn() {
+  if (state.gameOver) return;
+  const btn = document.getElementById('endTurnBtn');
+  btn.disabled = true;
+  processRound();
+  // state.round has been incremented by processRound
+  if (state.round > state.maxRounds) {
+    endGame();
+  } else {
+    btn.disabled = false;
+    const isFinal = state.round === state.maxRounds;
+    btn.textContent = isFinal
+      ? `⚠️ End Final Turn → Round ${state.round} of ${state.maxRounds}`
+      : `End Turn → Round ${state.round} of ${state.maxRounds}`;
+    btn.className = 'btn-end-turn' + (isFinal ? ' final' : '');
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -660,7 +677,7 @@ function processRound() {
   document.getElementById('statTreasury').textContent = '$' + state.treasury.toLocaleString();
   document.getElementById('statIncome').textContent = '+$' + income.toLocaleString();
   document.getElementById('statExpenses').textContent = '-$' + expenses.toLocaleString();
-  document.getElementById('statRound').innerHTML = `<span class="round-badge">${state.round}</span>`;
+  document.getElementById('statRound').innerHTML = `<span class="round-badge">${state.round} / ${state.maxRounds}</span>`;
 
   // round log
   state.log = roundLog;
@@ -671,8 +688,8 @@ function processRound() {
   buildTradeOffers();
   refreshPricesOnSliders();
 
+  updateRoundTrack();
   state.round++;
-  if (state.round > state.maxRounds) endGame();
 }
 
 function renderRoundLog() {
@@ -877,9 +894,7 @@ function addNews(text, type = '') {
   const feed = document.getElementById('newsFeed');
   const div = document.createElement('div');
   div.className = 'news-item ' + type;
-  const secs = state.secondsElapsed || 0;
-  const m = Math.floor(secs / 60), s = secs % 60;
-  div.innerHTML = `<span class="news-time">${m}:${s.toString().padStart(2,'0')}</span> ${text}`;
+  div.innerHTML = `<span class="news-time">R${state.round}</span> ${text}`;
   feed.prepend(div);
   // keep last 30
   while (feed.children.length > 30) feed.removeChild(feed.lastChild);
@@ -892,8 +907,6 @@ function addNews(text, type = '') {
 function endGame() {
   if (state.gameOver) return;
   state.gameOver = true;
-  clearInterval(state.timerInterval);
-  clearInterval(state.roundInterval);
 
   document.getElementById('finalTreasury').textContent = '$' + state.treasury.toLocaleString();
 
